@@ -24,6 +24,8 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 #include "external/maskApi.h"
 
+#include <vector>
+
 namespace SUN {
     namespace shared_types {
 
@@ -153,7 +155,7 @@ namespace SUN {
                 auto thisRLE = GetRLERepresentation();
                 auto otherRLE = the_other_compressed_mask.GetRLERepresentation();
                 double iou;
-                rleIou(thisRLE, otherRLE, (siz)1, (siz)1, (byte)0, &iou);
+                rleIou(thisRLE, otherRLE, (siz)1, (siz)1, (byte *)0, &iou);
                 rleFree(thisRLE);
                 rleFree(otherRLE);
                 return iou;

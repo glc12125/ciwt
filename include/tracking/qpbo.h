@@ -23,6 +23,7 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 #define GOT_QPBO_H
 
 #include <Eigen/Core>
+#include <vector>
 
 namespace GOT {
     namespace tracking {
