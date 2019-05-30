@@ -38,6 +38,9 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include "sun_utils/utils_common.h"
 #include "sun_utils/utils_filtering.h"
 
+// Timer
+#include <Timer/timer.h>
+
 
 double ComputeBoundingBox2dDensity(const GOT::segmentation::ObjectProposal &object_proposal) {
     const auto &bbox2d = object_proposal.bounding_box_2d();
@@ -54,12 +57,15 @@ namespace GOT {
             ComputeSuppressedMultiScale3DProposals(pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr input_cloud,
                                          const SUN::utils::Camera &left_camera, const SUN::utils::Camera &right_camera,
                                                    const po::variables_map &parameter_map) {
-
+                Timer timer;
+                timer.start("ComputeMultiScale3DProposalsQuickShift");
                 auto proposals_per_scale = ComputeMultiScale3DProposalsQuickShift(input_cloud, left_camera, parameter_map);
 
+                timer.start("MultiScaleSuppression");
                 auto scale_overlap_thresh = parameter_map.at("clustering_scale_persistence_overlap_threshold").as<double>();
                 auto final_proposal_set = GOT::segmentation::utils::MultiScaleSuppression(proposals_per_scale, scale_overlap_thresh);
 
+                timer.start("Compute covariance matrices");
                 /// Compute covariance matrices
                 for (auto &proposal:final_proposal_set) {
                     // TODO ...
@@ -72,7 +78,7 @@ namespace GOT {
                     proposal.set_pose_covariance_matrix(cov_mat);
                 }
 
-
+                timer.start("Normalize scale-persistance scores");
                 /// Normalize scale-persistance scores
                 int num_scale_spaces = parameter_map.at("clustering_num_scale_spaces").as<int>();
                 for (auto &proposal:final_proposal_set)
@@ -81,6 +87,7 @@ namespace GOT {
                 /// Sort according to the score!
                 std::sort(final_proposal_set.begin(), final_proposal_set.end(), [](const GOT::segmentation::ObjectProposal &i, const GOT::segmentation::ObjectProposal &j){ return i.score() > j.score(); });
 
+                timer.plotAndReset();
                 return final_proposal_set;
             }
 
@@ -217,7 +224,8 @@ namespace GOT {
             std::vector <std::vector<ObjectProposal>>
             ComputeMultiScale3DProposalsQuickShift(pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr input_cloud,
                                                    const SUN::utils::Camera &camera, const po::variables_map &parameter_map) {
-
+                Timer timer;
+                timer.start("copyPointCloud");
                 pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud_to_process(new pcl::PointCloud <pcl::PointXYZRGBA>);
                 pcl::copyPointCloud(*input_cloud, *cloud_to_process);
 
@@ -235,15 +243,16 @@ namespace GOT {
                 double plane_max_dist = parameter_map.at("filtering_max_distance_to_plane").as<double>();
                 int min_num_points = parameter_map.at("filtering_min_num_points").as<int>();
 
+                timer.start("Prefilter pointcloud");
                 /// Prefilter the point-cloud
                 SUN::utils::filter::FilterPointCloudBasedOnDistanceToGroundPlane(cloud_to_process, camera.ground_model(),
                                                                                      plane_min_dist, plane_max_dist, false); // Remove ground-plane points, far-away points
 
-
+                timer.start("FilterPointCloudBasedOnNormalEstimation");
                 SUN::utils::filter::FilterPointCloudBasedOnNormalEstimation(cloud_to_process, false); // Normal-based cleaning
 
 
-
+                timer.start("Compute 'ground' density map");
                 /// Compute 'ground' density map
                 GOT::segmentation::GroundHistogram ground_hist(parameter_map.at("ground_histogram_length").as<double>(),
                                                                parameter_map.at("ground_histogram_depth").as<double>(),
@@ -251,7 +260,7 @@ namespace GOT {
                                                                parameter_map.at("ground_histogram_rows").as<int>(),
                                                                parameter_map.at("ground_histogram_cols").as<int>());
 
-
+                timer.start("Compute density map");
                 ground_hist.ComputeDensityMap(cloud_to_process, camera, true, 1500, parameter_map.at("ground_histogram_noise_threshold").as<double>());
 
                 std::vector<ObjectProposal> proposals_all;
@@ -261,7 +270,7 @@ namespace GOT {
                 std::vector<std::pair<float, float> > sigma_inc_pairs = {std::pair<float, float>(intial_radius, intial_radius),
                                                                          std::pair<float, float>(intial_radius*0.5, intial_radius),
                                                                          std::pair<float, float>(intial_radius, intial_radius*0.5)};
-
+                timer.start("Multiscale search");
                 /// Multiscale search: get objects candidates at several different scales
                 const clock_t clustering_begin_time = clock();
                 for (const auto &sigma_pair:sigma_inc_pairs) {
@@ -354,7 +363,7 @@ namespace GOT {
                 }
 
                 printf("*** Processing time (multi-scale clustering): %.3f s\r\n", float(clock() - clustering_begin_time) / CLOCKS_PER_SEC);
-
+                timer.plotAndReset();
                 return proposals_per_scale;
             }
         }
