@@ -3,10 +3,10 @@ project(GOT)
 
 # Build Options
 option(SHOW_PATH "Show path of libs and headers" OFF)
-set(LOCAL_PREFIX "/usr/local/" CACHE PATH "Path to local installations e.g. USER/local/")
+set(LOCAL_PREFIX "/usr/lib/x86_64-linux-gnu/" CACHE PATH "Path to local installations e.g. USER/local/")
 set(OpenCV_DIR "/usr/local/share/OpenCV/" CACHE PATH "Path to local OpenCV e.g. USER/local/share/OpenCV")
 set(PCL_DIR "/usr/local/share/pcl-1.8/PCLConfig.cmake/" CACHE PATH "Path to local PCL e.g. USER/local/share/pcl-1.8")
-set(EIGEN_INCLUDE_DIRS "/usr/local/include/eigen3/" CACHE PATH "Path to local eigen/include e.g. USER/local/include/eigen3")
+set(EIGEN_INCLUDE_DIRS "/usr/include/eigen3/" CACHE PATH "Path to local eigen/include e.g. USER/local/include/eigen3")
 
 
 # Compiler Flags
@@ -20,16 +20,16 @@ set(CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
 set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
 
 set(Boost_LIBS
-        "${LOCAL_PREFIX}/lib/libboost_program_options-mt.a"
-        "${LOCAL_PREFIX}/lib/libboost_thread-mt.a"
-        "${LOCAL_PREFIX}/lib/libboost_system-mt.a"
-        "${LOCAL_PREFIX}/lib/libboost_signals-mt.a"
-        "${LOCAL_PREFIX}/lib/libboost_log-mt.a"
+        "${LOCAL_PREFIX}/libboost_program_options.so"
+        "${LOCAL_PREFIX}/libboost_thread.so"
+        "${LOCAL_PREFIX}/libboost_system.so"
+        "${LOCAL_PREFIX}/libboost_signals.so"
+        "${LOCAL_PREFIX}/libboost_log.so"
         )
 
 # Here we set *_LIBS, *_INCLUDE_DIRS, etc
 #find_package(OpenCV 3.1.0 REQUIRED COMPONENTS core highgui imgproc calib3d video)
-# find_package(Boost 1.61.0 REQUIRED COMPONENTS program_options thread system signals)
+find_package(Boost 1.58.0 REQUIRED COMPONENTS program_options thread system signals)
 
 find_package(OpenCV REQUIRED COMPONENTS core highgui imgproc calib3d video)
 find_package(PCL 1.8.0 REQUIRED COMPONENTS common io visualization filters sample_consensus segmentation kdtree)
@@ -163,8 +163,8 @@ message(STATUS "PCL libs: " ${PCL_LIBRARIES})
 
 # Debug info
 if(SHOW_PATH)
-    message(STATUS "Boost_LIBRARIES: " ${Boost_LIBRARIES})
-    #message(STATUS "Boost libs: " ${Boost_LIBS})
+    #message(STATUS "Boost_LIBRARIES: " ${Boost_LIBRARIES})
+    message(STATUS "Boost libs: " ${Boost_LIBS})
     message(STATUS ${OpenCV_LIBS})
     message(STATUS "Project Source Dirs: " ${PROJECT_SOURCE_DIR})
     message(STATUS "OpenCV Include Dirs: " ${OpenCV_INCLUDE_DIRS})

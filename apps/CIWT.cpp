@@ -72,6 +72,9 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 #include "CIWT/observation_fusion.h"
 #include "CIWT/potential_functions.h"
 
+// Timer
+#include <Timer/timer.h>
+
 #define MAX_PATH_LEN 500
 
 // For convenience.
@@ -431,6 +434,8 @@ int main(const int argc, const char** argv) {
         assert(make_dir_success);
     }
 
+    Timer timer;
+    timer.start("Data handling");
     // -------------------------------------------------------------------------------
     // +++ Data handling +++
     // -------------------------------------------------------------------------------
@@ -455,6 +460,7 @@ int main(const int argc, const char** argv) {
         }
     };
 
+    timer.start("Tracker initialisation");
     // -------------------------------------------------------------------------------
     // +++ Tracker +++
     // -------------------------------------------------------------------------------
@@ -483,19 +489,20 @@ int main(const int argc, const char** argv) {
         cv::namedWindow("observations_id_window");
         cv::startWindowThread();
     }
-
+    timer.plotAndReset();
     // -------------------------------------------------------------------------------
     // +++ MAIN TRACKING LOOP +++
     // -------------------------------------------------------------------------------
     double total_processing_time = 0.0;
     for (int current_frame=CIWTApp::start_frame; current_frame<=CIWTApp::end_frame; current_frame++) {
-
+        Timer trackLooptimer;
         if(CIWTApp::debug_level>0){
             std::cout << "\33[33;40;1m" << "-----------------------------------------------------------------------------" << "\33[0m" << std::endl;
             std::cout << "\33[33;40;1m" <<"                                  Processing frame " << current_frame << "\33[0m"<< std::endl;
             std::cout << "\33[33;40;1m" << "-----------------------------------------------------------------------------" << "\33[0m" << std::endl;
         }
 
+        trackLooptimer.start("Load data");
         // -------------------------------------------------------------------------------
         // +++ Load data +++
         // -------------------------------------------------------------------------------
@@ -514,6 +521,7 @@ int main(const int argc, const char** argv) {
         pcl::copyPointCloud(*dataset_assistant.left_point_cloud_, *left_point_cloud_preprocessed);
         std::vector<SUN::utils::Detection> detections_current_frame = dataset_assistant.object_detections_;
 
+        trackLooptimer.start("Visual odometry for egomotion");
         // -------------------------------------------------------------------------------
         // +++ Run visual odometry module => estimate egomotion +++
         // -------------------------------------------------------------------------------
@@ -529,6 +537,7 @@ int main(const int argc, const char** argv) {
         left_camera.ApplyPoseTransform(CIWTApp::egomotion);
         right_camera.ApplyPoseTransform(CIWTApp::egomotion);
 
+        trackLooptimer.start("3D proposals");
         // -------------------------------------------------------------------------------
         // +++ 3D proposals +++
         // -------------------------------------------------------------------------------
@@ -544,6 +553,7 @@ int main(const int argc, const char** argv) {
             assert(success_loading_proposals);
         }
 
+        trackLooptimer.start("Filter 3D proposals");
         // Filter certain 'noise' proposals (reject small ones and flying-ones)
         object_proposals_all = GOT::segmentation::utils::FilterProposals(object_proposals_all, left_camera, variables_map);
 
@@ -556,6 +566,7 @@ int main(const int argc, const char** argv) {
         // Start per-frame timing analysis here!
         std::chrono::steady_clock::time_point time_begin = std::chrono::steady_clock::now();
 
+        trackLooptimer.start("Observation fusion");
         // -------------------------------------------------------------------------------
         // +++ Observation fusion +++
         // -------------------------------------------------------------------------------
@@ -581,6 +592,7 @@ int main(const int argc, const char** argv) {
             return 0;
         }
 
+        trackLooptimer.start("Re-compute pos. cov. matrices");
         // -------------------------------------------------------------------------------
         // +++ Re-compute pos. cov. matrices +++
         // -------------------------------------------------------------------------------
@@ -605,6 +617,7 @@ int main(const int argc, const char** argv) {
             obs.set_covariance3d(cov_out);
         }
 
+        trackLooptimer.start("Compute velocity for segments");
          // -------------------------------------------------------------------------------
          // +++ Compute velocity for segments +++
          // -------------------------------------------------------------------------------
@@ -626,6 +639,7 @@ int main(const int argc, const char** argv) {
         const int num_best_observations_to_consider = std::min(max_num_observations_for_tracker, static_cast<int>(observations_all.size()));
         auto observations_to_pass_to_tracker = observations_all;
 
+        trackLooptimer.start("Tracking");
         // -------------------------------------------------------------------------------
         // +++ Tracking +++
         // -------------------------------------------------------------------------------
@@ -652,6 +666,7 @@ int main(const int argc, const char** argv) {
                                                     std::bind(GOT::tracking::utils::HypoToLabelDefault, std::placeholders::_1, std::placeholders::_2,
                                                               left_camera.width(), left_camera.height()));
 
+        trackLooptimer.start("Visualizations");
         // -------------------------------------------------------------------------------
         // +++ Visualizations (image) +++
         // -------------------------------------------------------------------------------
@@ -671,6 +686,7 @@ int main(const int argc, const char** argv) {
             cv::imshow("observations_id_window", left_image_with_observations);
         }
 
+        trackLooptimer.start("Save left image with hypothesis 2D");
         /// Save to the disk
         if (CIWTApp::debug_level>=2) {
             char frame_str_buff[50];
@@ -684,6 +700,7 @@ int main(const int argc, const char** argv) {
             }
         }
 
+        trackLooptimer.start("Update the state for the 3D visualizer thread");
         // -------------------------------------------------------------------------------
         // +++ Update the state for the 3D visualizer thread +++
         // -------------------------------------------------------------------------------
@@ -709,6 +726,7 @@ int main(const int argc, const char** argv) {
 
             updateLock.unlock();
         }
+        trackLooptimer.plotAndReset();
     }
 
     // -------------------------------------------------------------------------------

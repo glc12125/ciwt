@@ -1,0 +1,1 @@
+./build/apps/CIWTApp --config data/kitti_sample.cfg --start_frame 0 --end_frame 15 --show_visualization_2d --show_visualization_3d --tracking_mode detection_shape
