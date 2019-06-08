@@ -146,11 +146,11 @@ namespace CIWTApp {
                 }
 
                 // Settings
-                bool draw_observations = false;
+                bool draw_observations = true;
                 bool draw_tracked_objects = true;
-                bool draw_terminated_hypos = false;
-                bool mark_only_proposal_region = false;
-                bool draw_proposals = false;
+                bool draw_terminated_hypos = true;
+                bool mark_only_proposal_region = true;
+                bool draw_proposals = true;
 
                 if (draw_proposals) {
                     // Render 3D bounding boxes.

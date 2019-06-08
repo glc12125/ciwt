@@ -34,7 +34,11 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 
 // Elas
-#include <libelas/elas.h>
+//#include <libelas/elas.h>
+#include <libelasomp/elas.h>
+
+// Timer
+#include <Timer/timer.h>
 
 #define MAX_PATH_LEN 500
 
@@ -70,9 +74,12 @@ namespace SUN {
                 //param.add_corners = 1;
                 //param.match_texture = 0;
 
-                std::vector<libelas::Elas::support_pt> support_points;
+                /*std::vector<libelas::Elas::support_pt> support_points;
                 libelas::Elas elas(param);
                 elas.process(grayscale_left.data, grayscale_right.data, D1_data, D2_data, dims, support_points);
+                */
+                libelas::Elas elas(param);
+                elas.process(grayscale_left.data, grayscale_right.data, D1_data, D2_data, dims);
 
                 disparity_left = SUN::DisparityMap(D1_data, width, height);
                 disparity_right = SUN::DisparityMap(D2_data, width, height);
@@ -274,13 +281,14 @@ namespace SUN {
             }
 
             bool DatasetAssitantDirty::LoadData__KITTI(int current_frame) {
+                Timer timer;
 
                 // -------------------------------------------------------------------------------
                 // +++ ABSOLUTELY REQUIRED DATA +++
                 // -------------------------------------------------------------------------------
                 char left_image_path_buff[MAX_PATH_LEN];
                 snprintf(left_image_path_buff, MAX_PATH_LEN, this->variables_map_["left_image_path"].as<std::string>().c_str(), current_frame);
-
+                timer.start("Load KITTI camera calibration");    
                 /// KITTI camera calibration
                 SUN::utils::KITTI::Calibration calibration;
                 const std::string calib_path = this->variables_map_["calib_path"].as<std::string>();
@@ -289,6 +297,7 @@ namespace SUN {
                     return false;
                 }
 
+                timer.start("Load left image data");
                 /// Image data
                 left_image_ = cv::imread(left_image_path_buff, CV_LOAD_IMAGE_COLOR);
                 if (left_image_.data == nullptr) {
@@ -305,6 +314,7 @@ namespace SUN {
                 // +++ OPTIONAL STUFF +++
                 // -------------------------------------------------------------------------------
 
+                timer.start("Load right image data");
                 /// Right image
                 if (this->variables_map_.count("right_image_path")) {
                     char right_image_path_buff[MAX_PATH_LEN];
@@ -317,6 +327,7 @@ namespace SUN {
                     }
                 }
 
+                timer.start("Compute disparity and save");
                 /// Disparity map
                 pcl::PointCloud<pcl::PointXYZRGBA>::Ptr point_cloud_ptr = nullptr;
                 if (this->variables_map_.count("left_disparity_path")) {
@@ -346,7 +357,7 @@ namespace SUN {
                 }
 
 
-
+                timer.start("Load detection sequences");
                 /// Load whole-sequence detections, but only once!
                 if (this->variables_map_.count("detections_path")) {
                     if (this->kitti_detections_full_sequence_.size() <= 0) {
@@ -355,7 +366,7 @@ namespace SUN {
                         sun_io.ReadLabels(this->variables_map_["detections_path"].as<std::string>(), kitti_detections_full_sequence_);
                     }
                 }
-
+                timer.start("Load velodyne data");
                 /// LiDAR
                 // Note: If velodyne scan is missing, don't return false. There are some velodyne scans actually missing in the dataset.
                 if (this->variables_map_.count("velodyne_path")) {
@@ -372,7 +383,7 @@ namespace SUN {
                     point_cloud_ptr = left_point_cloud_velodyne_;
                 }
 
-
+                timer.start("Fit ground plane");
                 /// Ground-plane
                 bool got_gp = false;
                 std::shared_ptr<SUN::utils::PlanarGroundModel> planar_ground_model(new SUN::utils::PlanarGroundModel);
@@ -399,12 +410,14 @@ namespace SUN {
                 left_camera_.set_ground_model(planar_ground_model);
                 right_camera_.set_ground_model(planar_ground_model);
 
+                timer.start("Detections");
                 /// Detections
                 if (this->variables_map_.count("detections_path")) {
                     object_detections_ = GetDetectionsKITTI(current_frame, left_camera_, right_camera_, variables_map_, this->kitti_detections_full_sequence_);
                     // object_detections_ = GetDetections3DOP(current_frame, left_camera_, calibration, variables_map_);
                 }
 
+                timer.start("velocity estimates");
                 /// Velocity estimates (from scene-flow)
                 if (this->variables_map_.count("flow_map_path")) {
                     char buff[500];
@@ -416,6 +429,7 @@ namespace SUN {
                     }
                 }
 
+                timer.plotAndReset();
                 return true;
             }
 

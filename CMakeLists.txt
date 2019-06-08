@@ -56,6 +56,9 @@ file(GLOB CIWT_SRC_FILES ${CMAKE_SOURCE_DIR}/src/CIWT/*.cpp)
 set(CIWT_SRC_DIR ${CMAKE_SOURCE_DIR}/src/CIWT)
 include_directories(${CIWT_SRC_DIR})
 
+#elas
+include_directories(include/libelasomp)
+
 find_package(OpenMP)
 if (OPENMP_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
@@ -106,6 +109,22 @@ add_library (elas
         include/libelas/descriptor.h
         )
 
+add_library (elasomp
+        src/libelasomp/matrix.cpp
+        src/libelasomp/triangle.cpp
+        src/libelasomp/filter.cpp
+        src/libelasomp/elas.cpp
+        src/libelasomp/descriptor.cpp
+
+        include/libelasomp/elas.h
+        include/libelasomp/image.h
+        include/libelasomp/timer.h
+        include/libelasomp/matrix.h
+        include/libelasomp/triangle.h
+        include/libelasomp/filter.h
+        include/libelasomp/descriptor.h
+        )
+
 add_library (tracking
         src/tracking/resource_manager.cpp
         src/tracking/observation.cpp
@@ -147,7 +166,7 @@ add_library (scene_segmentation
         )
 
 target_link_libraries(connected_components)
-target_link_libraries(elas)
+target_link_libraries(elasomp)
 target_link_libraries(viso2)
 target_link_libraries(scene_segmentation)
 target_link_libraries(tracking viso2)
